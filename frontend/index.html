@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FLEXWORLD — Живой город твоего статуса</title>
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: radial-gradient(circle at top, #131528 0%, #06070c 100%);
+      color: #ffffff;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding-bottom: 20px;
+    }
+    header {
+      width: 100%;
+      max-width: 960px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 12px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .logo {
+      font-size: 26px;
+      font-weight: 900;
+      letter-spacing: 2px;
+      background: linear-gradient(90deg, #0be881, #00f3ff, #ffd32a);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 0 0 25px rgba(11, 232, 129, 0.35);
+    }
+    .stats {
+      font-size: 13px;
+      color: #d2dae2;
+      background: rgba(30, 39, 46, 0.75);
+      backdrop-filter: blur(10px);
+      padding: 8px 18px;
+      border-radius: 30px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+    }
+    .stats span {
+      color: #ffd32a;
+      font-weight: 800;
+    }
+    .canvas-wrap {
+      position: relative;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 0 45px rgba(0, 243, 255, 0.18), 0 0 80px rgba(255, 0, 127, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      max-width: 100%;
+    }
+    canvas {
+      display: block;
+      background: #090a16;
+      max-width: 100%;
+      height: auto;
+    }
+    .vip-board {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      background: rgba(10, 12, 22, 0.72);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 211, 42, 0.4);
+      border-radius: 12px;
+      padding: 10px 14px;
+      font-size: 12px;
+      pointer-events: none;
+      min-width: 170px;
+    }
+    .vip-board-title {
+      color: #ffd32a;
+      font-weight: 900;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      font-size: 11px;
+    }
+    .vip-item {
+      color: #fff;
+      margin-bottom: 3px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    #banner {
+      position: absolute;
+      top: 22px;
+      left: 50%;
+      transform: translateX(-50%) scale(0.9);
+      background: linear-gradient(90deg, #ff9f1a, #ffd32a, #ff9f1a);
+      color: #090a0f;
+      padding: 12px 28px;
+      border-radius: 40px;
+      font-weight: 900;
+      font-size: 15px;
+      letter-spacing: 0.5px;
+      box-shadow: 0 0 30px rgba(255, 211, 42, 0.9);
+      opacity: 0;
+      transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      pointer-events: none;
+      white-space: nowrap;
+      z-index: 10;
+    }
+    #banner.active {
+      opacity: 1;
+      transform: translateX(-50%) scale(1);
+    }
+    .controls {
+      margin-top: 18px;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+      background: rgba(24, 30, 42, 0.85);
+      backdrop-filter: blur(12px);
+      padding: 16px 20px;
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    }
+    input, select, button {
+      padding: 13px 18px;
+      font-size: 15px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      outline: none;
+      font-family: inherit;
+    }
+    input {
+      background: rgba(15, 19, 28, 0.9);
+      color: #ffffff;
+      width: 210px;
+      transition: border 0.2s;
+    }
+    input:focus {
+      border-color: #00f3ff;
+    }
+    select {
+      background: rgba(15, 19, 28, 0.9);
+      color: #ffffff;
+      cursor: pointer;
+    }
+    button {
+      background: linear-gradient(135deg, #0be881 0%, #00d2d3 100%);
+      color: #06070c;
+      font-weight: 900;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 0 20px rgba(11, 232, 129, 0.4);
+      transition: all 0.2s ease;
+    }
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 0 30px rgba(11, 232, 129, 0.7);
+    }
+    .hint {
+      margin-top: 12px;
+      font-size: 13px;
+      color: #808e9b;
+      text-align: center;
+      max-width: 960px;
+      padding: 0 12px;
+    }
+    .hint b { color: #ffd32a; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="logo">FLEXWORLD CITY</div>
+    <div class="stats">На улице: <span id="onScreen">0</span>/120 &nbsp;|&nbsp; Всего жителей: <span id="totalCount">0</span></div>
+  </header>
+
+  <div class="canvas-wrap">
+    <canvas id="world" width="960" height="540"></canvas>
+    <div class="vip-board">
+      <div class="vip-board-title">👑 Олигархи города</div>
+      <div id="vipList"></div>
+    </div>
+    <div id="banner">👑 В ГОРОД ВОРВАЛСЯ ОЛИГАРХ!</div>
+  </div>
+
+  <div class="controls">
+    <input type="text" id="charName" placeholder="Введи свой ник..." maxlength="16">
+    <select id="charTier">
+      <option value="basic">Житель — 100 ₽ (в общей очереди)</option>
+      <option value="vip">Мажор VIP — 500 ₽ (аура + цепь + размер)</option>
+      <option value="king">Олигарх — 2000 ₽ (КОРОНА + САЛЮТ + НАВСЕГДА)</option>
+    </select>
+    <button onclick="spawnTest()">ЗАЛЕТЕТЬ В ГОРОД</button>
+  </div>
+
+  <div class="hint">Жители общаются между собой, пьют кофе, залипают в телефоны и танцуют. <b>Олигархи остаются в городе ВЕЧНО.</b></div>
+
+  <script>
+    const BACKEND_URL = "http://localhost:3000";
+    const socket = io(BACKEND_URL);
+
+    const canvas = document.getElementById('world');
+    const ctx = canvas.getContext('2d');
+
+    let entities = [];
+    let cars = [];
+    let backBuildings = [];
+    let frontBuildings = [];
+    let stars = [];
+    let particles = [];
+    let blimp = { x: 120, y: 65, speed: 0.35 };
+    let drone = { x: 750, y: 150, vx: -0.9 };
+    let frame = 0;
+
+    // База живых диалогов и фраз
+    const PHRASES = {
+      basic: [
+        "Всем салют!", "Кто тут главный?", "Коплю на статус...", "Ночной город топ",
+        "Кофе остыл...", "Ого, сколько народу!", "Чиллю на районе", "Где мой спорткар?",
+        "Зацените прическу", "Какой вайб!", "Кто в клуб?", "Закинул сотку на удачу"
+      ],
+      vip: [
+        "Двигаюсь на стиле", "Эй, подвиньтесь!", "Сегодня я угощаю", "Смотри какая цепь",
+        "VIP в здании!", "Скоро стану Олигархом", "Кайфуем, народ!", "Мой район!"
+      ],
+      king: [
+        "Я купил этот город!", "Преклонитесь перед королем", "Денег куры не клюют",
+        "Я здесь НАВСЕГДА!", "Кто перебьет мой статус?", "Запускайте салют!", "Мой пентхаус вон там"
+      ],
+      reply: [
+        "Согласен бро!", "Жиза...", "Красава!", "Ха-ха, точно!", "Ого, серьезно?", "Респект!", "Ну ты выдал!"
+      ]
+    };
+
+    function initCity() {
+      for (let i = 0; i < 65; i++) {
+        stars.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * 220,
+          size: Math.random() * 1.8 + 0.5,
+          blink: Math.random() * Math.PI
+        });
+      }
+
+      let bx = -20;
+      while (bx < canvas.width + 40) {
+        const w = 70 + Math.floor(Math.random() * 60);
+        const h = 160 + Math.floor(Math.random() * 130);
+        backBuildings.push({ x: bx, y: 310 - h, w, h });
+        bx += w - 10;
+      }
+
+      bx = 0;
+      const neonColors = ['#ff007f', '#00f3ff', '#0be881', '#ffd32a', '#be2edd'];
+      while (bx < canvas.width) {
+        const w = 68 + Math.floor(Math.random() * 52);
+        const h = 135 + Math.floor(Math.random() * 155);
+        const windows = [];
+        for (let wy = 310 - h + 18; wy < 295; wy += 20) {
+          for (let wx = bx + 10; wx < bx + w - 14; wx += 16) {
+            if (Math.random() > 0.32) {
+              windows.push({
+                x: wx, y: wy,
+                lit: Math.random() > 0.25,
+                warm: Math.random() > 0.3
+              });
+            }
+          }
+        }
+        frontBuildings.push({
+          x: bx, y: 310 - h, w, h,
+          color: Math.random() > 0.5 ? '#12152b' : '#181c38',
+          neon: Math.random() > 0.45 ? neonColors[Math.floor(Math.random() * neonColors.length)] : null,
+          spire: Math.random() > 0.65,
+          windows
+        });
+        bx += w + 5;
+      }
+
+      const carStyles = [
+        { body: '#ff2a5f', neon: '#ff007f' },
+        { body: '#00a8ff', neon: '#00f3ff' },
+        { body: '#fbc531', neon: '#ffd32a' },
+        { body: '#9c88ff', neon: '#be2edd' },
+        { body: '#0be881', neon: '#0be881' },
+        { body: '#ffffff', neon: '#00f3ff' }
+      ];
+      for (let i = 0; i < 6; i++) {
+        const dir = i % 2 === 0 ? 1 : -1;
+        const style = carStyles[i % carStyles.length];
+        cars.push({
+          x: Math.random() * canvas.width,
+          y: dir === 1 ? 336 : 316,
+          speed: (2.8 + Math.random() * 2.5) * dir,
+          body: style.body,
+          neon: style.neon,
+          dir
+        });
+      }
+    }
+    initCity();
+
+    function spawnFirework(x, y) {
+      const colors = ['#ffd32a', '#ff007f', '#00f3ff', '#0be881', '#ffffff'];
+      for (let i = 0; i < 45; i++) {
+        const angle = (Math.PI * 2 * i) / 45;
+        const speed = 1.5 + Math.random() * 4.5;
+        particles.push({
+          x, y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed - 1.5,
+          life: 65 + Math.random() * 25,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          size: 2.5 + Math.random() * 2
+        });
+      }
+    }
+
+    function updateVipBoard() {
+      const kings = entities.filter(e => e.tier === 'king').slice(-5).reverse();
+      const list = document.getElementById('vipList');
+      if (kings.length === 0) {
+        list.innerHTML = '<div class="vip-item" style="color:#808e9b">Пока никого...</div>';
+        return;
+      }
+      list.innerHTML = kings.map(k => `<div class="vip-item">👑 ${k.name}</div>`).join('');
+    }
+
+    function addEntity(data, isNew = false) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 0.7 + Math.random() * 0.7;
+      entities.push({
+        ...data,
+        pantsColor: data.pantsColor || "#1e272e",
+        hairColor: data.hairColor || "#2f3542",
+        hairStyle: data.hairStyle ?? Math.floor(Math.random() * 3),
+        skinColor: data.skinColor || "#ffdbac",
+        habit: data.habit || "coffee",
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed * 0.5,
+        facing: Math.cos(angle) >= 0 ? 1 : -1,
+        state: 'walk', // 'walk', 'habit', 'talk'
+        stateTimer: 120 + Math.floor(Math.random() * 240),
+        speechText: isNew ? "Всем привет! Я в городе!" : "",
+        speechTimer: isNew ? 180 : 0,
+        chatCooldown: 100 + Math.floor(Math.random() * 200),
+        walkOffset: Math.random() * 10
+      });
+      document.getElementById('onScreen').innerText = entities.length;
+      updateVipBoard();
+
+      if (isNew && data.tier === 'king') {
+        spawnFirework(data.x, data.y - 40);
+        showBanner(data.name);
+      }
+    }
+
+    function showBanner(name) {
+      const b = document.getElementById('banner');
+      b.innerText = `👑 ОЛИГАРХ ${name.toUpperCase()} ЗАЛЕТЕЛ В ГОРОД НАВСЕГДА!`;
+      b.classList.add('active');
+      setTimeout(() => b.classList.remove('active'), 4800);
+    }
+
+    socket.on('init_world', (data) => {
+      entities = [];
+      data.characters.forEach(c => addEntity(c, false));
+      document.getElementById('totalCount').innerText = data.total;
+    });
+
+    socket.on('new_character', (data) => {
+      addEntity(data.character, true);
+      document.getElementById('totalCount').innerText = data.total;
+    });
+
+    socket.on('remove_character', (id) => {
+      entities = entities.filter(e => e.id !== id);
+      document.getElementById('onScreen').innerText = entities.length;
+      updateVipBoard();
+    });
+
+    async function spawnTest() {
+      const input = document.getElementById('charName');
+      const name = input.value.trim() || "Флексер_" + Math.floor(Math.random() * 999);
+      const tier = document.getElementById('charTier').value;
+      await fetch(`${BACKEND_URL}/api/webhook/spawn`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, tier })
+      });
+      input.value = '';
+    }
+
+    function drawBackground() {
+      const sky = ctx.createLinearGradient(0, 0, 0, 310);
+      sky.addColorStop(0, '#05060f');
+      sky.addColorStop(0.6, '#0f1229');
+      sky.addColorStop(1, '#1d163b');
+      ctx.fillStyle = sky;
+      ctx.fillRect(0, 0, canvas.width, 310);
+
+      stars.forEach(s => {
+        const alpha = 0.4 + Math.sin(frame * 0.04 + s.blink) * 0.4;
+        ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+        ctx.fillRect(s.x, s.y, s.size, s.size);
+      });
+
+      ctx.save();
+      ctx.shadowColor = '#00f3ff';
+      ctx.shadowBlur = 35;
+      ctx.fillStyle = '#e8f8ff';
+      ctx.beginPath();
+      ctx.arc(830, 75, 28, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      backBuildings.forEach(b => {
+        ctx.fillStyle = '#0b0d1f';
+        ctx.fillRect(b.x, b.y, b.w, b.h);
+      });
+
+      blimp.x += blimp.speed;
+      if (blimp.x > canvas.width + 120) blimp.x = -120;
+      ctx.save();
+      ctx.translate(blimp.x, blimp.y + Math.sin(frame * 0.03) * 4);
+      ctx.fillStyle = '#1e272e';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 52, 18, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#ff007f';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.fillStyle = '#0be881';
+      ctx.font = 'bold 9px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('FLEXWORLD 24/7', 0, 3);
+      ctx.restore();
+
+      frontBuildings.forEach(b => {
+        ctx.fillStyle = b.color;
+        ctx.fillRect(b.x, b.y, b.w, b.h);
+
+        if (b.spire) {
+          ctx.strokeStyle = '#485460';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(b.x + b.w / 2, b.y);
+          ctx.lineTo(b.x + b.w / 2, b.y - 22);
+          ctx.stroke();
+          if (Math.floor(frame / 25) % 2 === 0) {
+            ctx.fillStyle = '#ff2a5f';
+            ctx.beginPath();
+            ctx.arc(b.x + b.w / 2, b.y - 23, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+
+        if (b.neon) {
+          ctx.save();
+          ctx.shadowColor = b.neon;
+          ctx.shadowBlur = 12;
+          ctx.fillStyle = b.neon;
+          ctx.fillRect(b.x + 3, b.y, b.w - 6, 3);
+          ctx.restore();
+        }
+
+        b.windows.forEach(win => {
+          if (win.lit) {
+            ctx.fillStyle = win.warm ? 'rgba(255, 211, 42, 0.72)' : 'rgba(0, 243, 255, 0.55)';
+          } else {
+            ctx.fillStyle = '#0a0c1a';
+          }
+          ctx.fillRect(win.x, win.y, 7, 11);
+        });
+      });
+
+      drone.x += drone.vx;
+      if (drone.x < 80 || drone.x > canvas.width - 80) drone.vx *= -1;
+      const dy = drone.y + Math.sin(frame * 0.06) * 8;
+      ctx.fillStyle = 'rgba(0, 243, 255, 0.08)';
+      ctx.beginPath();
+      ctx.moveTo(drone.x, dy);
+      ctx.lineTo(drone.x - 45, 310);
+      ctx.lineTo(drone.x + 45, 310);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#2f3640';
+      ctx.fillRect(drone.x - 10, dy - 3, 20, 6);
+      ctx.fillStyle = '#00f3ff';
+      ctx.fillRect(drone.x - 3, dy + 1, 6, 3);
+
+      ctx.fillStyle = '#141824';
+      ctx.fillRect(0, 310, canvas.width, 48);
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+      ctx.setLineDash([18, 16]);
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, 334);
+      ctx.lineTo(canvas.width, 334);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      const sidewalk = ctx.createLinearGradient(0, 358, 0, canvas.height);
+      sidewalk.addColorStop(0, '#1e2436');
+      sidewalk.addColorStop(1, '#121622');
+      ctx.fillStyle = sidewalk;
+      ctx.fillRect(0, 358, canvas.width, canvas.height - 358);
+
+      ctx.save();
+      ctx.shadowColor = '#00f3ff';
+      ctx.shadowBlur = 10;
+      ctx.fillStyle = '#00f3ff';
+      ctx.fillRect(0, 358, canvas.width, 2);
+      ctx.restore();
+    }
+
+    function drawCars() {
+      cars.forEach(c => {
+        c.x += c.speed;
+        if (c.dir === 1 && c.x > canvas.width + 70) c.x = -70;
+        if (c.dir === -1 && c.x < -70) c.x = canvas.width + 70;
+
+        ctx.save();
+        ctx.shadowColor = c.neon;
+        ctx.shadowBlur = 14;
+        ctx.fillStyle = c.neon;
+        ctx.fillRect(c.x + 4, c.y + 12, 40, 3);
+        ctx.restore();
+
+        ctx.fillStyle = c.body;
+        ctx.beginPath();
+        ctx.roundRect(c.x, c.y, 48, 12, 4);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.roundRect(c.x + 10, c.y - 6, 26, 7, 3);
+        ctx.fill();
+
+        ctx.fillStyle = '#090a0f';
+        ctx.beginPath();
+        ctx.arc(c.x + 11, c.y + 12, 4.5, 0, Math.PI * 2);
+        ctx.arc(c.x + 37, c.y + 12, 4.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        if (c.dir === 1) {
+          ctx.fillStyle = '#ff2a5f';
+          ctx.fillRect(c.x, c.y + 3, 3, 5);
+          ctx.fillStyle = 'rgba(255, 250, 200, 0.25)';
+          ctx.beginPath();
+          ctx.moveTo(c.x + 48, c.y + 6);
+          ctx.lineTo(c.x + 125, c.y - 6);
+          ctx.lineTo(c.x + 125, c.y + 18);
+          ctx.fill();
+        } else {
+          ctx.fillStyle = '#ff2a5f';
+          ctx.fillRect(c.x + 45, c.y + 3, 3, 5);
+          ctx.fillStyle = 'rgba(255, 250, 200, 0.25)';
+          ctx.beginPath();
+          ctx.moveTo(c.x, c.y + 6);
+          ctx.lineTo(c.x - 77, c.y - 6);
+          ctx.lineTo(c.x - 77, c.y + 18);
+          ctx.fill();
+        }
+      });
+    }
+
+    // Логика поведения, привычек и диалогов между людьми
+    function updatePeopleLogic() {
+      for (let i = 0; i < entities.length; i++) {
+        const p = entities[i];
+        p.stateTimer--;
+        if (p.chatCooldown > 0) p.chatCooldown--;
+        if (p.speechTimer > 0) p.speechTimer--;
+
+        // Переключение состояний (ходьба <-> привычка)
+        if (p.stateTimer <= 0) {
+          if (p.state === 'walk') {
+            p.state = 'habit';
+            p.stateTimer = 140 + Math.floor(Math.random() * 140);
+            // Иногда при привычке человек кидает реплику вслух
+            if (Math.random() < 0.35 && p.speechTimer <= 0) {
+              const pool = PHRASES[p.tier] || PHRASES.basic;
+              p.speechText = pool[Math.floor(Math.random() * pool.length)];
+              p.speechTimer = 160;
+            }
+          } else {
+            p.state = 'walk';
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 0.7 + Math.random() * 0.7;
+            p.vx = Math.cos(angle) * speed;
+            p.vy = Math.sin(angle) * speed * 0.5;
+            p.facing = p.vx >= 0 ? 1 : -1;
+            p.stateTimer = 180 + Math.floor(Math.random() * 260);
+          }
+        }
+
+        // Движение только в режиме ходьбы
+        if (p.state === 'walk') {
+          p.x += p.vx;
+          p.y += p.vy;
+
+          if (p.x < 35) { p.x = 35; p.vx = Math.abs(p.vx); p.facing = 1; }
+          if (p.x > canvas.width - 35) { p.x = canvas.width - 35; p.vx = -Math.abs(p.vx); p.facing = -1; }
+          if (p.y < 372) { p.y = 372; p.vy = Math.abs(p.vy); }
+          if (p.y > canvas.height - 25) { p.y = canvas.height - 25; p.vy = -Math.abs(p.vy); }
+        }
+
+        // Проверка близости для диалога с другим человеком
+        if (p.chatCooldown <= 0 && p.speechTimer <= 0 && entities.length > 1) {
+          for (let j = i + 1; j < entities.length; j++) {
+            const other = entities[j];
+            const dx = other.x - p.x;
+            const dy = other.y - p.y;
+            const dist = Math.hypot(dx, dy);
+
+            if (dist < 52 && other.chatCooldown <= 0 && other.speechTimer <= 0) {
+              // Останавливаем обоих и поворачиваем лицом друг к другу
+              p.state = 'talk';
+              other.state = 'talk';
+              p.stateTimer = 150;
+              other.stateTimer = 150;
+              p.facing = dx >= 0 ? 1 : -1;
+              other.facing = dx >= 0 ? -1 : 1;
+
+              const pool = PHRASES[p.tier] || PHRASES.basic;
+              p.speechText = pool[Math.floor(Math.random() * pool.length)];
+              p.speechTimer = 150;
+
+              other.speechText = PHRASES.reply[Math.floor(Math.random() * PHRASES.reply.length)];
+              other.speechTimer = 150;
+
+              p.chatCooldown = 450;
+              other.chatCooldown = 450;
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    // Отрисовка человечного персонажа с анатомией, руками, ногами, прической и привычками
+    function drawHuman(p) {
+      const scale = p.tier === 'king' ? 1.42 : (p.tier === 'vip' ? 1.18 : 1.0);
+      const isWalking = p.state === 'walk';
+      const t = frame * 0.16 + p.walkOffset;
+
+      const legSwing = isWalking ? Math.sin(t) * 5.5 * scale : 0;
+      const armSwing = isWalking ? -Math.sin(t) * 5 * scale : 0;
+      const bounce = isWalking ? Math.abs(Math.sin(t)) * 1.8 * scale : (p.habit === 'workout' && p.state === 'habit' ? Math.abs(Math.sin(frame * 0.25)) * 4 * scale : 0);
+
+      // Золотые искры за Олигархом
+      if (p.tier === 'king' && frame % 6 === 0) {
+        particles.push({
+          x: p.x + (Math.random() - 0.5) * 16,
+          y: p.y + 18 * scale,
+          vx: (Math.random() - 0.5) * 0.5,
+          vy: -0.6 - Math.random() * 0.7,
+          life: 32,
+          color: '#ffd32a',
+          size: 2
+        });
+      }
+
+      // Дымок для привычки smoke
+      if (p.state === 'habit' && p.habit === 'smoke' && frame % 18 === 0) {
+        particles.push({
+          x: p.x + p.facing * 8 * scale,
+          y: p.y - 16 * scale,
+          vx: p.facing * 0.3 + (Math.random() - 0.5) * 0.3,
+          vy: -0.8 - Math.random() * 0.4,
+          life: 40,
+          color: 'rgba(200, 210, 220, 0.6)',
+          size: 3
+        });
+      }
+
+      ctx.save();
+      ctx.translate(p.x, p.y);
+
+      // Тень под ногами
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+      ctx.beginPath();
+      ctx.ellipse(0, 22 * scale, 11 * scale, 4 * scale, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Неоновая аура статуса
+      if (p.tier !== 'basic') {
+        const pulse = 1 + Math.sin(frame * 0.08) * 0.1;
+        ctx.save();
+        ctx.shadowColor = p.tier === 'king' ? '#ffd32a' : '#0be881';
+        ctx.shadowBlur = 14;
+        ctx.strokeStyle = p.tier === 'king' ? 'rgba(255, 211, 42, 0.85)' : 'rgba(11, 232, 129, 0.75)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.ellipse(0, 22 * scale, 15 * scale * pulse, 6 * scale * pulse, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // --- ОТРИСОВКА ТЕЛА С УЧЕТОМ НАПРАВЛЕНИЯ ВЗГЛЯДА (p.facing) ---
+      ctx.save();
+      ctx.scale(p.facing, 1);
+
+      // 1. Дальняя рука
+      ctx.strokeStyle = p.color;
+      ctx.lineWidth = 3.2 * scale;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(2 * scale, -7 * scale - bounce);
+      ctx.lineTo(3 * scale - armSwing, 3 * scale - bounce);
+      ctx.stroke();
+
+      // 2. Дальняя нога + кроссовок
+      ctx.strokeStyle = p.pantsColor;
+      ctx.lineWidth = 4 * scale;
+      ctx.beginPath();
+      ctx.moveTo(1.5 * scale, 6 * scale - bounce);
+      ctx.lineTo(2 * scale - legSwing, 19 * scale);
+      ctx.stroke();
+      // Кроссовок
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.roundRect(0.5 * scale - legSwing, 18 * scale, 6 * scale, 3.5 * scale, 1.5 * scale);
+      ctx.fill();
+
+      // 3. Ближняя нога + кроссовок
+      ctx.strokeStyle = p.pantsColor;
+      ctx.lineWidth = 4.2 * scale;
+      ctx.beginPath();
+      ctx.moveTo(-1.5 * scale, 6 * scale - bounce);
+      ctx.lineTo(-1 * scale + legSwing, 19 * scale);
+      ctx.stroke();
+      // Кроссовок
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.roundRect(-2.5 * scale + legSwing, 18 * scale, 6 * scale, 3.5 * scale, 1.5 * scale);
+      ctx.fill();
+
+      // 4. Торс (худи / куртка с воротником)
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.roundRect(-6.5 * scale, -10 * scale - bounce, 13 * scale, 17 * scale, 4 * scale);
+      ctx.fill();
+
+      // Полоска молнии на куртке
+      ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+      ctx.lineWidth = 1.2 * scale;
+      ctx.beginPath();
+      ctx.moveTo(2.5 * scale, -9 * scale - bounce);
+      ctx.lineTo(2.5 * scale, 6 * scale - bounce);
+      ctx.stroke();
+
+      // Золотая цепь для VIP и Короля
+      if (p.tier !== 'basic') {
+        ctx.strokeStyle = '#ffd32a';
+        ctx.lineWidth = 2 * scale;
+        ctx.beginPath();
+        ctx.arc(1.5 * scale, -7 * scale - bounce, 3.8 * scale, 0.1, Math.PI - 0.1);
+        ctx.stroke();
+      }
+
+      // 5. Шея и Голова
+      ctx.fillStyle = p.skinColor;
+      ctx.fillRect(-2 * scale, -13 * scale - bounce, 4 * scale, 4 * scale);
+
+      ctx.beginPath();
+      ctx.arc(0, -18 * scale - bounce, 6.2 * scale, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Глаз (смотрит вперед)
+      ctx.fillStyle = '#11141d';
+      ctx.beginPath();
+      ctx.arc(3.2 * scale, -18.5 * scale - bounce, 1.1 * scale, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Улыбка при разговоре
+      if (p.speechTimer > 0) {
+        ctx.strokeStyle = '#11141d';
+        ctx.lineWidth = 1.1 * scale;
+        ctx.beginPath();
+        ctx.arc(3.2 * scale, -16.2 * scale - bounce, 1.8 * scale, 0.2, Math.PI - 0.2);
+        ctx.stroke();
+      }
+
+      // Прическа (3 варианта)
+      ctx.fillStyle = p.hairColor;
+      if (p.hairStyle === 0) {
+        // Короткая стрижка с челкой
+        ctx.beginPath();
+        ctx.arc(0, -19.5 * scale - bounce, 6.4 * scale, Math.PI * 0.85, Math.PI * 2.15);
+        ctx.fill();
+      } else if (p.hairStyle === 1) {
+        // Стильный ирокез / хохолок
+        ctx.beginPath();
+        ctx.ellipse(0, -24 * scale - bounce, 5 * scale, 3 * scale, -0.2, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        // Удлиненные волосы / каре
+        ctx.beginPath();
+        ctx.arc(-0.5 * scale, -18.5 * scale - bounce, 6.8 * scale, Math.PI * 0.65, Math.PI * 2.05);
+        ctx.fill();
+      }
+
+      // Темные очки для VIP и Короля
+      if (p.tier !== 'basic') {
+        ctx.fillStyle = '#05060f';
+        ctx.fillRect(0.5 * scale, -20 * scale - bounce, 5.8 * scale, 2.6 * scale);
+        ctx.strokeStyle = '#05060f';
+        ctx.lineWidth = 1.2 * scale;
+        ctx.beginPath();
+        ctx.moveTo(-2 * scale, -19 * scale - bounce);
+        ctx.lineTo(1 * scale, -19 * scale - bounce);
+        ctx.stroke();
+      }
+
+      // Наушники для привычки music
+      if (p.habit === 'music') {
+        ctx.strokeStyle = '#00f3ff';
+        ctx.lineWidth = 2 * scale;
+        ctx.beginPath();
+        ctx.arc(-0.5 * scale, -18 * scale - bounce, 6.8 * scale, Math.PI * 1.1, Math.PI * 1.75);
+        ctx.stroke();
+        ctx.fillStyle = '#00f3ff';
+        ctx.beginPath();
+        ctx.arc(-1 * scale, -18 * scale - bounce, 2.3 * scale, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // 6. Ближняя рука + предмет привычки
+      ctx.strokeStyle = p.color;
+      ctx.lineWidth = 3.4 * scale;
+      if (p.state === 'habit' && (p.habit === 'coffee' || p.habit === 'phone' || p.habit === 'smoke')) {
+        // Рука согнута у груди/лица
+        ctx.beginPath();
+        ctx.moveTo(-1 * scale, -7 * scale - bounce);
+        ctx.lineTo(1 * scale, -1 * scale - bounce);
+        ctx.lineTo(6 * scale, -4 * scale - bounce);
+        ctx.stroke();
+
+        // Кисть
+        ctx.fillStyle = p.skinColor;
+        ctx.beginPath();
+        ctx.arc(6.5 * scale, -4.5 * scale - bounce, 1.8 * scale, 0, Math.PI * 2);
+        ctx.fill();
+
+        if (p.habit === 'coffee') {
+          // Стаканчик кофе
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(5.5 * scale, -9 * scale - bounce, 4 * scale, 5.5 * scale);
+          ctx.fillStyle = '#d35400';
+          ctx.fillRect(5 * scale, -10 * scale - bounce, 5 * scale, 1.5 * scale);
+        } else if (p.habit === 'phone') {
+          // Свечение экрана смартфона
+          ctx.fillStyle = '#00f3ff';
+          ctx.fillRect(6.5 * scale, -10 * scale - bounce, 2.2 * scale, 5 * scale);
+          ctx.fillStyle = 'rgba(0, 243, 255, 0.25)';
+          ctx.beginPath();
+          ctx.moveTo(6.5 * scale, -8 * scale - bounce);
+          ctx.lineTo(2 * scale, -16 * scale - bounce);
+          ctx.lineTo(2 * scale, -12 * scale - bounce);
+          ctx.fill();
+        } else if (p.habit === 'smoke') {
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(6.5 * scale, -5 * scale - bounce, 4 * scale, 1.2 * scale);
+          ctx.fillStyle = '#ff4757';
+          ctx.fillRect(10 * scale, -5 * scale - bounce, 1.2 * scale, 1.2 * scale);
+        }
+      } else if (p.state === 'talk') {
+        // Жестикуляция при разговоре
+        const wave = Math.sin(frame * 0.3) * 3 * scale;
+        ctx.beginPath();
+        ctx.moveTo(-1 * scale, -7 * scale - bounce);
+        ctx.lineTo(5 * scale, -4 * scale - bounce + wave);
+        ctx.stroke();
+        ctx.fillStyle = p.skinColor;
+        ctx.beginPath();
+        ctx.arc(5.5 * scale, -4 * scale - bounce + wave, 1.8 * scale, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        // Обычный взмах рукой при ходьбе
+        ctx.beginPath();
+        ctx.moveTo(-1 * scale, -7 * scale - bounce);
+        ctx.lineTo(-1 * scale + armSwing, 3 * scale - bounce);
+        ctx.stroke();
+        ctx.fillStyle = p.skinColor;
+        ctx.beginPath();
+        ctx.arc(-1 * scale + armSwing, 3.5 * scale - bounce, 1.8 * scale, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Корона для Олигарха
+      if (p.tier === 'king') {
+        ctx.save();
+        ctx.shadowColor = '#ffd32a';
+        ctx.shadowBlur = 12;
+        ctx.fillStyle = '#ffd32a';
+        ctx.beginPath();
+        ctx.moveTo(-5.5 * scale, -24.5 * scale - bounce);
+        ctx.lineTo(-7 * scale, -31.5 * scale - bounce);
+        ctx.lineTo(-2 * scale, -27.5 * scale - bounce);
+        ctx.lineTo(0, -33.5 * scale - bounce);
+        ctx.lineTo(2 * scale, -27.5 * scale - bounce);
+        ctx.lineTo(7 * scale, -31.5 * scale - bounce);
+        ctx.lineTo(5.5 * scale, -24.5 * scale - bounce);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = '#ff2a5f';
+        ctx.beginPath();
+        ctx.arc(0, -27 * scale - bounce, 1.6 * scale, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      ctx.restore(); // Конец зеркального отражения персонажа
+
+      // --- НИКНЕЙМ И ОБЛАЧКО ДИАЛОГА (ВСЕГДА ЧИТАЕМЫ СЛЕВА НАПРАВО) ---
+      const fontSize = Math.round(11.5 * scale);
+      ctx.font = `800 ${fontSize}px 'Segoe UI', sans-serif`;
+      ctx.textAlign = 'center';
+      const labelY = (p.tier === 'king' ? -39 : -29) * scale - bounce;
+      const textWidth = ctx.measureText(p.name).width;
+
+      ctx.fillStyle = 'rgba(9, 10, 18, 0.72)';
+      ctx.beginPath();
+      ctx.roundRect(-textWidth / 2 - 6, labelY - fontSize + 2, textWidth + 12, fontSize + 4, 6);
+      ctx.fill();
+
+      ctx.fillStyle = p.tier === 'king' ? '#ffd32a' : (p.tier === 'vip' ? '#0be881' : '#ffffff');
+      ctx.fillText(p.name, 0, labelY);
+
+      // Облачко диалога над ником
+      if (p.speechTimer > 0 && p.speechText) {
+        ctx.font = `600 11px 'Segoe UI', sans-serif`;
+        const msgW = ctx.measureText(p.speechText).width + 16;
+        const bubbleY = labelY - fontSize - 22;
+
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.roundRect(-msgW / 2, bubbleY, msgW, 20, 8);
+        ctx.fill();
+
+        // Хвостик облачка
+        ctx.beginPath();
+        ctx.moveTo(-4, bubbleY + 20);
+        ctx.lineTo(4, bubbleY + 20);
+        ctx.lineTo(0, bubbleY + 25);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = '#090a0f';
+        ctx.fillText(p.speechText, 0, bubbleY + 14);
+      }
+
+      ctx.restore();
+    }
+
+    function updateParticles() {
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const pt = particles[i];
+        pt.x += pt.vx;
+        pt.y += pt.vy;
+        pt.life--;
+        ctx.fillStyle = pt.color;
+        ctx.globalAlpha = Math.max(0, pt.life / 60);
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, pt.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        if (pt.life <= 0) particles.splice(i, 1);
+      }
+    }
+
+    function loop() {
+      frame++;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      drawBackground();
+      drawCars();
+
+      updatePeopleLogic();
+
+      entities.sort((a, b) => a.y - b.y);
+      entities.forEach(p => drawHuman(p));
+
+      updateParticles();
+      requestAnimationFrame(loop);
+    }
+    loop();
+  </script>
+</body>
+</html>
